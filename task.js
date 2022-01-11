@@ -126,7 +126,8 @@ const tasks = {
       debug('reset code coverage in interactive mode')
       const coverageMap = istanbul.createCoverageMap({})
       saveCoverage(coverageMap)
-      rmdirSync(join(nycReportOptions.tempDir, 'specific'), { recursive: true })
+      //rmdirSync(join(nycReportOptions.tempDir, 'specific'), { recursive: true })
+      ///rmdirSync(join(nycReportOptions.reportDir, 'specific'), { recursive: true })
     }
     /*
         Else:
@@ -148,14 +149,13 @@ const tasks = {
   combineCoverage(sentCoverage) {
     const {coverage, testName} = JSON.parse(sentCoverage)
     debug('parsed sent coverage')
-    console.log('coverage for '+testName)
 
     fixSourcePaths(coverage)
 
     const handleCoverage = (fileName) => {
 
       const fullPath = join(nycReportOptions.tempDir, fileName)
-      console.log('saving to', fullPath)
+
 
       const previousCoverage = existsSync(fullPath)
         ? JSON.parse(readFileSync(fullPath, 'utf8'))
@@ -171,13 +171,16 @@ const tasks = {
       const coverageMap = istanbul.createCoverageMap(previousCoverage)
       coverageMap.merge(coverage)
       saveCoverage(coverageMap, fileName)
+      if (Object.keys(previousCoverage).length === 0) {
+        console.log('created to', fullPath)
+      } else {
+        console.log('merged to', fullPath)
+      }
       debug('wrote coverage file %s', fileName)
     }
 
-    console.log("handle global")
     handleCoverage(globalNycFilename)
     const slug = testName.replace(/[\/]+/g, '--')
-    console.log('handle specific for '+slug)
     handleCoverage(join('specific', slug, 'out.json'))
 
     return null
@@ -187,7 +190,7 @@ const tasks = {
    * Saves coverage information as a JSON file and calls
    * NPM script to generate HTML report
    */
-  coverageReport() {
+  async coverageReport() {
     if (!existsSync(nycFilename)) {
       console.warn('Cannot find coverage file %s', nycFilename)
       console.warn('Skipping coverage report')
@@ -237,58 +240,76 @@ const tasks = {
       return reportFolder
     }
 
-    const specificFiles = readdirSync(join(nycReportOptions.tempDir, 'specific'))
-    console.log(specificFiles)
-    specificFiles.forEach(async fileName => {
-      const fullCoverageMap = await nyc.getCoverageMapFromAllCoverageFiles(join(nycReportOptions.tempDir, 'specific', fileName))
+    mkdirSync(join(nycReportOptions.tempDir, 'specific'), { recursive: true })
+    const tempSpecificFiles = readdirSync(join(nycReportOptions.tempDir, 'specific'))
+    const startTime = new Date()
 
-      const writeFile = join(nycReportOptions.reportDir, 'specific', fileName.slice(fileName.lastIndexOf('--')+2).replace(/\.spec\.[jt]{1}s$/, '')+'.json')
-      mkdirSync(dirname(writeFile), { recursive: true })
-      writeFileSync(writeFile, JSON.stringify(Object.values(fullCoverageMap.data).map(data => {
-        const mapData = data.data
-        //console.log('mapdata', mapData)
-        const b = {}
-        Object.entries(mapData.b).forEach(([index, value]) => {
-          if (value.some(i => i > 0)) {
-            if (!mapData.branchMap[index].loc || !mapData.branchMap[index].loc.start) {
-              console.log('not found ', index, ' in ', mapData.branchMap)
-            }
-            const lineNr = mapData.branchMap[index].loc.start.line
-            b[lineNr] = value
-          }
-        })
-        const s = {}
-        Object.entries(mapData.s).forEach(([index, value]) => {
-          if (value > 0) {
-            if (!mapData.statementMap[index] || !mapData.statementMap[index].start) {
-              console.log('not found ', index, ' in ', mapData.statementMap)
-            }
-            const lineNr = mapData.statementMap[index].start.line
-            s[lineNr] = value
-          }
-        })
-        const f = {}
-        Object.entries(mapData.f).forEach(([index, value]) => {
-          if (value > 0) {
-            if (!mapData.fnMap[index].loc || !mapData.fnMap[index].loc.start) {
-              console.log('not found ', index, ' in ', mapData.fnMap)
-            }
-            const lineNr = mapData.fnMap[index].loc.start.line
-            f[lineNr] = value
-          }
-        })
+    mkdirSync(join(nycReportOptions.reportDir, 'specific'), { recursive: true })
+    console.log('Existing results', readdirSync(join(nycReportOptions.reportDir, 'specific')))
+    for(let i = 0; i < tempSpecificFiles.length; i++) {
+      const fileName = tempSpecificFiles[i];
+      try {
+        const writeFile = join(nycReportOptions.reportDir, 'specific', fileName.slice(fileName.lastIndexOf('--') + 2).replace(/\.spec\.[jt]{1}s$/, '') + '.json')
 
-        if (Object.keys(b).length > 0 || Object.keys(s).length > 0 || Object.keys(f).length > 0) {
-          return {
-            path: mapData.path.replace(process.cwd()+'/', ''),
-            b,
-            s,
-            f
+        // write every file only once
+        if (existsSync(writeFile)) continue;
+
+        console.log('Processing '+fileName)
+
+        const fullCoverageMap = await nyc.getCoverageMapFromAllCoverageFiles(join(nycReportOptions.tempDir, 'specific', fileName))
+
+        mkdirSync(dirname(writeFile), { recursive: true })
+        // only write items that actually have values, and only write those values
+        writeFileSync(writeFile, JSON.stringify(Object.values(fullCoverageMap.data).map(data => {
+          const mapData = data.data
+          //console.log('mapdata', mapData)
+          const b = {}
+          Object.entries(mapData.b).forEach(([index, value]) => {
+            if (value.some(i => i > 0)) {
+              if (!mapData.branchMap[index].loc || !mapData.branchMap[index].loc.start) {
+                console.log('not found ', index, ' in ', mapData.branchMap)
+              }
+              const lineNr = mapData.branchMap[index].loc.start.line
+              b[lineNr] = value
+            }
+          })
+          const s = {}
+          Object.entries(mapData.s).forEach(([index, value]) => {
+            if (value > 0) {
+              if (!mapData.statementMap[index] || !mapData.statementMap[index].start) {
+                console.log('not found ', index, ' in ', mapData.statementMap)
+              }
+              const lineNr = mapData.statementMap[index].start.line
+              s[lineNr] = value
+            }
+          })
+          const f = {}
+          Object.entries(mapData.f).forEach(([index, value]) => {
+            if (value > 0) {
+              if (!mapData.fnMap[index].loc || !mapData.fnMap[index].loc.start) {
+                console.log('not found ', index, ' in ', mapData.fnMap)
+              }
+              const lineNr = mapData.fnMap[index].loc.start.line
+              f[lineNr] = value
+            }
+          })
+
+          if (Object.keys(b).length > 0 || Object.keys(s).length > 0 || Object.keys(f).length > 0) {
+            return {
+              path: mapData.path.replace(process.cwd() + '/', ''),
+              b,
+              s,
+              f
+            }
           }
-        }
-        return undefined
-      }).filter(i => i)))
-    })
+          return undefined
+        }).filter(i => i)))
+        console.log("Written", writeFile)
+      } catch(error) {
+        console.error("Error generating report for " + fileName)
+      }
+    }
+    console.log("processed individual files in ", new Date().getTime() - startTime.getTime(), 'ms')
 
     return nyc.report().then(returnReportFolder)
   }
