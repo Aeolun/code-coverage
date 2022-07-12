@@ -267,7 +267,7 @@ const tasks = {
         // only write items that actually have values, and only write those values
         writeFileSync(writeFile, JSON.stringify(Object.values(fullCoverageMap.data).map(data => {
           const mapData = data.data
-          //console.log('mapdata', mapData)
+
           const b = {}
           Object.entries(mapData.b).forEach(([index, value]) => {
             if (value.some(i => i > 0)) {
@@ -275,7 +275,8 @@ const tasks = {
                 console.log('not found ', index, ' in ', mapData.branchMap)
               }
               const lineNr = mapData.branchMap[index].loc.start.line
-              b[lineNr] = value
+              if (!b[lineNr]) b[lineNr] = []
+              b[lineNr].push(value)
             }
           })
           const s = {}
@@ -285,7 +286,8 @@ const tasks = {
                 console.log('not found ', index, ' in ', mapData.statementMap)
               }
               const lineNr = mapData.statementMap[index].start.line
-              s[lineNr] = value
+              if (!s[lineNr]) s[lineNr] = []
+              s[lineNr].push(value)
             }
           })
           const f = {}
@@ -295,7 +297,8 @@ const tasks = {
                 console.log('not found ', index, ' in ', mapData.fnMap)
               }
               const lineNr = mapData.fnMap[index].loc.start.line
-              f[lineNr] = value
+              if (!f[lineNr]) f[lineNr] = []
+              f[lineNr].push(value)
             }
           })
 
