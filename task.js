@@ -257,11 +257,15 @@ const tasks = {
         const writeFile = join(nycReportOptions.reportDir, 'specific', fileName.slice(fileName.lastIndexOf('--') + 2).replace(/\.spec\.[jt]{1}s$/, '') + '.json')
 
         // write every file only once
-        if (existsSync(writeFile)) continue;
+        if (existsSync(writeFile)) {
+          console.log('Skipping', fileName)
+          continue;
+        }
 
         console.log('Processing '+fileName)
 
         const fullCoverageMap = await nyc.getCoverageMapFromAllCoverageFiles(join(nycReportOptions.tempDir, 'specific', fileName))
+        writeFileSync(join(nycReportOptions.reportDir, 'fullCoverageMap.json'), JSON.stringify(fullCoverageMap))
 
         mkdirSync(dirname(writeFile), { recursive: true })
         // only write items that actually have values, and only write those values
@@ -293,10 +297,10 @@ const tasks = {
           const f = {}
           Object.entries(mapData.f).forEach(([index, value]) => {
             if (value > 0) {
-              if (!mapData.fnMap[index].loc || !mapData.fnMap[index].loc.start) {
+              if (!mapData.fnMap[index].decl || !mapData.fnMap[index].decl.start) {
                 console.log('not found ', index, ' in ', mapData.fnMap)
               }
-              const lineNr = mapData.fnMap[index].loc.start.line
+              const lineNr = mapData.fnMap[index].decl.start.line
               if (!f[lineNr]) f[lineNr] = []
               f[lineNr].push(value)
             }
