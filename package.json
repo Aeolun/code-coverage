@@ -1,6 +1,6 @@
 {
   "name": "@aeolun/code-coverage",
-  "version": "3.12.0",
+  "version": "3.12.1",
   "description": "Saves the code coverage collected during Cypress tests",
   "main": "index.js",
   "scripts": {
