@@ -57,7 +57,7 @@ function fixSourcePaths(coverage) {
 
     if (inputSourceMap.sourceRoot) inputSourceMap.sourceRoot = ''
     inputSourceMap.sources = inputSourceMap.sources.map((source) =>
-      source?.includes(fileName) ? absolutePath : source
+      source && source.includes(fileName) ? absolutePath : source
     )
   })
 }
