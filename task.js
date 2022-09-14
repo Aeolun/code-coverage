@@ -147,43 +147,48 @@ const tasks = {
    * @returns {null} Nothing is returned from this task
    */
   combineCoverage(sentCoverage) {
-    const {coverage, testName} = JSON.parse(sentCoverage)
-    debug('parsed sent coverage')
-
-    fixSourcePaths(coverage)
-
-    const handleCoverage = (fileName) => {
-
-      const fullPath = join(nycReportOptions.tempDir, fileName)
-
-
-      const previousCoverage = existsSync(fullPath)
-        ? JSON.parse(readFileSync(fullPath, 'utf8'))
-        : {}
-
-      // previous code coverage object might have placeholder entries
-      // for files that we have not seen yet,
-      // but the user expects to include in the coverage report
-      // the merge function messes up, so we should remove any placeholder entries
-      // and re-insert them again when creating the report
-      removePlaceholders(previousCoverage)
-
-      const coverageMap = istanbul.createCoverageMap(previousCoverage)
-      coverageMap.merge(coverage)
-      saveCoverage(coverageMap, fileName)
-      if (Object.keys(previousCoverage).length === 0) {
-        console.log('created to', fullPath)
-      } else {
-        console.log('merged to', fullPath)
+    try {
+      const {coverage, testName} = JSON.parse(sentCoverage)
+      debug('parsed sent coverage')
+  
+      fixSourcePaths(coverage)
+  
+      const handleCoverage = (fileName) => {
+  
+        const fullPath = join(nycReportOptions.tempDir, fileName)
+  
+  
+        const previousCoverage = existsSync(fullPath)
+          ? JSON.parse(readFileSync(fullPath, 'utf8'))
+          : {}
+  
+        // previous code coverage object might have placeholder entries
+        // for files that we have not seen yet,
+        // but the user expects to include in the coverage report
+        // the merge function messes up, so we should remove any placeholder entries
+        // and re-insert them again when creating the report
+        removePlaceholders(previousCoverage)
+  
+        const coverageMap = istanbul.createCoverageMap(previousCoverage)
+        coverageMap.merge(coverage)
+        saveCoverage(coverageMap, fileName)
+        if (Object.keys(previousCoverage).length === 0) {
+          console.log('created to', fullPath)
+        } else {
+          console.log('merged to', fullPath)
+        }
+        debug('wrote coverage file %s', fileName)
       }
-      debug('wrote coverage file %s', fileName)
+  
+      handleCoverage(globalNycFilename)
+      const slug = testName.replace(/[\/]+/g, '--')
+      handleCoverage(join('specific', slug, 'out.json'))
+  
+      return null
+    } catch (error) {
+      console.log('Error while combining coverage', error)
+      return null
     }
-
-    handleCoverage(globalNycFilename)
-    const slug = testName.replace(/[\/]+/g, '--')
-    handleCoverage(join('specific', slug, 'out.json'))
-
-    return null
   },
 
   /**
