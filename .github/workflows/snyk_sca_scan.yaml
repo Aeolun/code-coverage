@@ -1,0 +1,25 @@
+name: Snyk Software Composition Analysis Scan
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
+jobs:
+  Snyk_SCA_Scan:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16.x]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setting up Node
+        #- name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Run Snyk to check for opensource vulnerabilities
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_API_TOKEN }}
+        with:
+          args: --all-projects --strict-out-of-sync=false --detection-depth=6 --exclude=docker,Dockerfile --severity-threshold=critical
